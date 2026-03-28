@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a5c45">
+<title>Feeds Management System</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --green-900:#0a2e22;--green-800:#0a5c45;--green-700:#0d7a5c;--green-600:#0f9470;
+  --green-400:#1ec99a;--green-200:#7fe8ca;--green-100:#c5f5e8;--green-50:#edfaf5;
+  --amber-600:#c47a0a;--amber-100:#fef0c7;--amber-50:#fffbeb;
+  --red-600:#c0392b;--red-100:#fde8e6;--red-50:#fff5f4;
+  --blue-600:#1a6bb5;--blue-100:#dbeafe;
+  --gray-900:#1a1f1e;--gray-800:#2d3530;--gray-700:#3f4a46;
+  --gray-600:#5a6660;--gray-400:#8fa39a;--gray-200:#d1dbd7;
+  --gray-100:#eef2f0;--gray-50:#f6f9f7;
+  --surface:#ffffff;--bg:#f0f5f2;
+  --text:#1a1f1e;--text-2:#3f4a46;--text-3:#8fa39a;
+  --border:rgba(15,148,112,0.15);--border-2:rgba(15,148,112,0.25);
+  --radius:10px;--radius-lg:16px;--radius-xl:22px;
+  --shadow:0 1px 3px rgba(10,92,69,0.08),0 4px 16px rgba(10,92,69,0.06);
+  --shadow-lg:0 4px 24px rgba(10,92,69,0.14);
+  font-size:15px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans Tamil',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none}
+.mono{font-family:'DM Mono',monospace}
+
+/* ── LAYOUT ── */
+#app{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;position:relative}
+.topbar{position:sticky;top:0;z-index:90;background:var(--green-800);color:#fff;padding:0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(10,92,69,0.3)}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.app-logo{width:32px;height:32px;background:var(--green-600);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px}
+.app-name{font-size:15px;font-weight:600;letter-spacing:-0.01em}
+.app-sub{font-size:11px;opacity:0.7;margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.icon-btn{width:36px;height:36px;border-radius:8px;border:none;background:rgba(255,255,255,0.12);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px}
+.icon-btn:active{background:rgba(255,255,255,0.22)}
+.user-pill{background:rgba(255,255,255,0.15);border-radius:20px;padding:4px 10px 4px 6px;display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer}
+.user-avatar{width:24px;height:24px;border-radius:50%;background:var(--green-400);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--green-900)}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{position:sticky;bottom:0;z-index:90;background:var(--surface);border-top:1px solid var(--border);display:flex;padding:6px 0 env(safe-area-inset-bottom,6px);box-shadow:0 -4px 20px rgba(10,92,69,0.08)}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;cursor:pointer;border:none;background:none;color:var(--text-3);font-family:inherit;font-size:10px;transition:color 0.15s}
+.nav-tab .icon{font-size:20px;line-height:1}
+.nav-tab.active{color:var(--green-700)}
+.nav-tab.active .icon{transform:scale(1.08)}
+
+/* ── CONTENT ── */
+.content{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px;padding-bottom:80px}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
+.card-header{padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.card-title{font-size:14px;font-weight:600;color:var(--text)}
+.card-body{padding:14px 16px}
+
+/* ── STAT CARDS ── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);padding:14px 16px;box-shadow:var(--shadow)}
+.stat-card.accent{background:var(--green-800);border-color:transparent}
+.stat-card.accent .stat-label{color:rgba(255,255,255,0.65)}
+.stat-card.accent .stat-val{color:#fff}
+.stat-card.accent .stat-sub{color:rgba(255,255,255,0.5)}
+.stat-label{font-size:11px;color:var(--text-3);margin-bottom:4px;font-weight:500;letter-spacing:0.02em}
+.stat-val{font-size:26px;font-weight:600;color:var(--text);line-height:1;font-family:'DM Mono',monospace}
+.stat-sub{font-size:11px;color:var(--text-3);margin-top:3px}
+
+/* ── BADGE ── */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:var(--green-100);color:var(--green-800)}
+.badge-amber{background:var(--amber-100);color:var(--amber-600)}
+.badge-red{background:var(--red-100);color:var(--red-600)}
+.badge-blue{background:var(--blue-100);color:var(--blue-600)}
+.badge-gray{background:var(--gray-100);color:var(--gray-600)}
+
+/* ── PROGRESS ── */
+.progress{height:5px;background:var(--gray-100);border-radius:3px;overflow:hidden;margin-top:8px}
+.progress-bar{height:100%;border-radius:3px;background:var(--green-600);transition:width 0.4s ease}
+.progress-bar.warn{background:var(--amber-600)}
+.progress-bar.danger{background:var(--red-600)}
+
+/* ── LIST ITEMS ── */
+.list-item{display:flex;align-items:center;padding:12px 16px;gap:12px;border-bottom:1px solid var(--border)}
+.list-item:last-child{border-bottom:none}
+.list-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.list-body{flex:1;min-width:0}
+.list-title{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-sub{font-size:11px;color:var(--text-3);margin-top:2px}
+.list-right{text-align:right;flex-shrink:0}
+.list-val{font-size:14px;font-weight:600;font-family:'DM Mono',monospace}
+.list-sub2{font-size:10px;color:var(--text-3);margin-top:2px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:var(--radius);border:1px solid var(--border-2);background:var(--surface);color:var(--text);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;-webkit-tap-highlight-color:transparent}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:var(--green-800);color:#fff;border-color:transparent;box-shadow:0 2px 8px rgba(10,92,69,0.3)}
+.btn-primary:active{background:var(--green-700)}
+.btn-danger{background:var(--red-600);color:#fff;border-color:transparent}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
+.btn-full{width:100%;margin-top:8px}
+.btn-icon{width:32px;height:32px;padding:0;border-radius:8px}
+
+/* ── FORMS ── */
+.form-group{margin-bottom:12px}
+.form-label{font-size:12px;font-weight:500;color:var(--text-2);display:block;margin-bottom:5px}
+.form-input{width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius);font-family:inherit;font-size:14px;color:var(--text);background:var(--surface);transition:border-color 0.15s;-webkit-appearance:none}
+.form-input:focus{outline:none;border-color:var(--green-600)}
+.form-input::placeholder{color:var(--text-3)}
+select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238fa39a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;cursor:pointer}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-info{font-size:11px;color:var(--text-3);margin-top:4px;padding:6px 10px;background:var(--green-50);border-radius:6px}
+
+/* ── ALERT ── */
+.alert{padding:10px 14px;border-radius:var(--radius);font-size:13px;display:flex;align-items:flex-start;gap:8px}
+.alert-success{background:var(--green-50);color:var(--green-800);border:1px solid var(--green-100)}
+.alert-warn{background:var(--amber-50);color:var(--amber-600);border:1px solid var(--amber-100)}
+.alert-danger{background:var(--red-50);color:var(--red-600);border:1px solid var(--red-100)}
+
+/* ── TABS ── */
+.tab-bar{display:flex;background:var(--gray-100);border-radius:var(--radius);padding:3px;gap:2px;margin-bottom:14px}
+.tab-btn{flex:1;padding:7px;border:none;background:none;border-radius:7px;font-family:inherit;font-size:12px;font-weight:500;color:var(--text-3);cursor:pointer;transition:all 0.15s}
+.tab-btn.active{background:var(--surface);color:var(--green-800);box-shadow:0 1px 4px rgba(10,92,69,0.12)}
+
+/* ── MODAL / SHEET ── */
+.sheet-overlay{position:fixed;inset:0;background:rgba(10,30,22,0.45);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
+.sheet-overlay.open{display:flex}
+.sheet{background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:0 0 env(safe-area-inset-bottom,20px);box-shadow:0 -8px 40px rgba(10,92,69,0.2)}
+.sheet-handle{width:36px;height:4px;background:var(--gray-200);border-radius:2px;margin:12px auto 0}
+.sheet-header{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.sheet-title{font-size:16px;font-weight:600}
+.sheet-body{padding:16px 20px}
+.close-x{width:28px;height:28px;border-radius:50%;border:none;background:var(--gray-100);color:var(--text-2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+
+/* ── LOGIN ── */
+#loginScreen{position:fixed;inset:0;background:linear-gradient(160deg,var(--green-900) 0%,var(--green-800) 50%,var(--green-700) 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;padding:24px}
+.login-card{background:rgba(255,255,255,0.97);border-radius:24px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.login-logo{width:56px;height:56px;background:var(--green-800);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px}
+.login-title{text-align:center;font-size:22px;font-weight:700;color:var(--green-900);margin-bottom:4px}
+.login-sub{text-align:center;font-size:13px;color:var(--text-3);margin-bottom:24px}
+.role-pills{display:flex;gap:8px;margin-bottom:16px}
+.role-pill{flex:1;padding:10px 8px;border:2px solid var(--gray-200);border-radius:10px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-3);transition:all 0.15s;font-family:inherit}
+.role-pill.active{border-color:var(--green-700);color:var(--green-800);background:var(--green-50)}
+
+/* ── REPORT ACTIONS ── */
+.report-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.report-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border-radius:12px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:11px;font-weight:500;color:var(--text-2);transition:all 0.15s}
+.report-btn .r-icon{font-size:22px}
+.report-btn:active{background:var(--gray-50);transform:scale(0.97)}
+.report-btn.green{background:var(--green-50);border-color:var(--green-100);color:var(--green-800)}
+.report-btn.amber{background:var(--amber-50);border-color:var(--amber-100);color:var(--amber-600)}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:32px 16px;color:var(--text-3)}
+.empty .e-icon{font-size:40px;margin-bottom:8px}
+.empty p{font-size:13px}
+
+/* ── SECTION LABEL ── */
+.section-label{font-size:11px;font-weight:700;color:var(--text-3);letter-spacing:0.08em;text-transform:uppercase;padding:0 2px;margin-bottom:6px}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--gray-900);color:#fff;padding:10px 18px;border-radius:22px;font-size:13px;z-index:999;opacity:0;transition:all 0.25s;pointer-events:none;white-space:nowrap;max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── SEARCH ── */
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:8px 12px;margin-bottom:12px}
+.search-bar input{flex:1;border:none;outline:none;font-family:inherit;font-size:13px;color:var(--text);background:none}
+.search-bar input::placeholder{color:var(--text-3)}
+
+/* ── DATE CHIP ── */
+.date-chip{background:var(--green-50);color:var(--green-800);border:1px solid var(--green-100);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;display:inline-block}
+
+/* ── ANIMATIONS ── */
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.content>*{animation:slideUp 0.22s ease both}
+.content>*:nth-child(2){animation-delay:.04s}
+.content>*:nth-child(3){animation-delay:.08s}
+.content>*:nth-child(4){animation-delay:.12s}
+.content>*:nth-child(5){animation-delay:.16s}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">🌾</div>
+    <div class="login-title">Feeds Management</div>
+    <div class="login-sub">உள்நுழைக — Login</div>
+    <div class="form-group">
+      <div class="form-label">பங்கு தேர்வு (Role)</div>
+      <div class="role-pills">
+        <button class="role-pill active" onclick="selectRole('manager',this)">Manager</button>
+        <button class="role-pill" onclick="selectRole('cc',this)">CC Incharge</button>
+      </div>
+    </div>
+    <div class="form-group" id="ccSelectWrap" style="display:none">
+      <div class="form-label">CC தேர்வு</div>
+      <select class="form-input" id="loginCCSelect"></select>
+    </div>
+    <div class="form-group">
+      <div class="form-label">Username</div>
+      <input class="form-input" id="loginUser" type="text" placeholder="உங்கள் பெயர்" value="manager">
+    </div>
+    <div class="form-group">
+      <div class="form-label">Password</div>
+      <input class="form-input" id="loginPass" type="password" placeholder="••••••" value="1234">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">உள்நுழை ▸</button>
+    <div style="text-align:center;font-size:11px;color:var(--text-3);margin-top:12px">GKD Feeds Management System</div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="app-logo">🌾</div>
+      <div>
+        <div class="app-name">Feeds Mgmt</div>
+        <div class="app-sub" id="topSubtitle">Manager Dashboard</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="user-pill" onclick="logout()">
+        <div class="user-avatar" id="topAvatar">M</div>
+        <span id="topUserName">User</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div class="content" id="pageContent"></div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav" id="bottomNav"></div>
+</div>
+
+<!-- BOTTOM SHEET MODAL -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet(event)">
+  <div class="sheet" id="sheetContent">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="sheetTitle">Sheet</div>
+      <button class="close-x" onclick="closeSheet()">✕</button>
+    </div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// DATA STORE (LocalStorage backed)
+// ═══════════════════════════════════════════════════
+const STORE_KEY = 'feeds_app_v3';
+
+function loadData() {
+  const saved = localStorage.getItem(STORE_KEY);
+  if (saved) return JSON.parse(saved);
+  return getDefaultData();
+}
+
+function saveData() {
+  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  localStorage.setItem('feeds_app_backup_'+new Date().toISOString().slice(0,10), JSON.stringify(DB));
+}
+
+function getDefaultData() {
+  return {
+    ccs: {},
+    societies: {},
+    deliveries: [],
+    feedRates: [],
+    currentRate: 0,
+    damageRecords: [],
+    outFeeds: [],
+    users: [
+      {id:'u1',username:'manager',password:'1234',role:'manager',cc:null,name:'Manager'},
+    ],
+  };
+}
+
+let DB = loadData();
+let SESSION = { role:null, cc:null, user:null, loginRole:'manager' };
+let ACTIVE_TAB = 'home';
+
+// ═══════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════
+function selectRole(role, el) {
+  SESSION.loginRole = role;
+  document.querySelectorAll('.role-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('ccSelectWrap').style.display = role === 'cc' ? 'block' : 'none';
+  if (role === 'cc') {
+    const sel = document.getElementById('loginCCSelect');
+    const ccKeys = Object.keys(DB.ccs);
+    if (ccKeys.length === 0) {
+      sel.innerHTML = '<option value="">-- CC இல்லை --</option>';
+    } else {
+      sel.innerHTML = ccKeys.map(k => `<option value="${k}">${DB.ccs[k].name||k}</option>`).join('');
+    }
+  }
+}
+
+function doLogin() {
+  const uname = document.getElementById('loginUser').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const role  = SESSION.loginRole;
+
+  // Demo login shortcut
+  let user;
+  if (role === 'manager' && pass === '1234') {
+    user = DB.users.find(u => u.role === 'manager') || {id:'ux',username:uname,role:'manager',cc:null,name:uname};
+  } else if (role === 'cc' && pass === '1234') {
+    const selCC = document.getElementById('loginCCSelect').value;
+    user = DB.users.find(u => u.role === 'cc' && u.cc === selCC) ||
+           {id:'ux',username:uname,role:'cc',cc:selCC,name:uname+' ('+selCC+')'};
+  }
+
+  if (!user) { showToast('❌ தவறான தகவல்'); return; }
+
+  SESSION.role = user.role;
+  SESSION.cc   = user.cc;
+  SESSION.user = user;
+
+  document.getElementById('topAvatar').textContent = user.name[0].toUpperCase();
+  document.getElementById('topUserName').textContent = user.name.split(' ')[0];
+  document.getElementById('topSubtitle').textContent = role === 'manager' ? 'Manager View' : user.cc + ' Incharge';
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  buildNav();
+  navigate('home');
+}
+
+function logout() {
+  if (!confirm('வெளியேற வேண்டுமா?')) return;
+  SESSION = {role:null,cc:null,user:null,loginRole:'manager'};
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginPass').value = '';
+}
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════
+function buildNav() {
+  const isM = SESSION.role === 'manager';
+  const tabs = isM
+    ? [{id:'home',icon:'🏠',label:'Home'},{id:'feeds',icon:'🚚',label:'Feeds'},{id:'stock',icon:'📦',label:'Stock'},{id:'reports',icon:'📊',label:'Reports'},{id:'settings',icon:'⚙️',label:'Settings'}]
+    : [{id:'home',icon:'🏠',label:'Home'},{id:'societies',icon:'🏘️',label:'Societies'},{id:'give',icon:'🚜',label:'கொடு'},{id:'records',icon:'📋',label:'Records'},{id:'damage',icon:'⚠️',label:'Damage'}];
+
+  document.getElementById('bottomNav').innerHTML = tabs.map(t =>
+    `<button class="nav-tab" id="tab_${t.id}" onclick="navigate('${t.id}')">
+       <span class="icon">${t.icon}</span>${t.label}</button>`
+  ).join('');
+}
+
+function navigate(page) {
+  ACTIVE_TAB = page;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  const el = document.getElementById('tab_'+page);
+  if (el) el.classList.add('active');
+  const renders = {
+    home: SESSION.role === 'manager' ? renderManagerHome : renderCCHome,
+    feeds: renderFeeds,
+    stock: renderStock,
+    reports: renderReports,
+    settings: renderSettings,
+    societies: renderSocieties,
+    give: renderGive,
+    records: renderCCRecords,
+    damage: renderDamage,
+  };
+  const fn = renders[page];
+  if (fn) document.getElementById('pageContent').innerHTML = fn();
+  attachPageHandlers(page);
+}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+function totalStock() { return Object.values(DB.ccs).reduce((a,c)=>a+c.stock,0); }
+function todayStr()   { return new Date().toISOString().slice(0,10); }
+function uid()        { return 'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
+function fmtNum(n)    { return Number(n).toLocaleString('en-IN'); }
+function fmtDate(d)   { return new Date(d+'T00:00:00').toLocaleDateString('ta-IN',{day:'numeric',month:'short',year:'numeric'}); }
+
+function showToast(msg, dur=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), dur);
+}
+
+function openSheet(title, bodyHTML) {
+  document.getElementById('sheetTitle').textContent = title;
+  document.getElementById('sheetBody').innerHTML = bodyHTML;
+  document.getElementById('sheetOverlay').classList.add('open');
+}
+
+function closeSheet(e) {
+  if (!e || e.target === document.getElementById('sheetOverlay'))
+    document.getElementById('sheetOverlay').classList.remove('open');
+}
+
+function stockBadge(s) {
+  if (s < 50)  return 'badge-red';
+  if (s < 200) return 'badge-amber';
+  return 'badge-green';
+}
+function stockLabel(s) {
+  if (s < 50)  return '⚠️ குறைவு';
+  if (s < 200) return '🟡 சரி';
+  return '✅ நல்லது';
+}
+
+// ═══════════════════════════════════════════════════
+// MANAGER — HOME
+// ═══════════════════════════════════════════════════
+function renderManagerHome() {
+  const total = totalStock();
+  const todayDel = DB.deliveries.filter(d=>d.date===todayStr()&&d.from==='Manager');
+  const todayBags = todayDel.reduce((a,d)=>a+d.bags, 0);
+  const allSocs = Object.values(DB.societies).flat();
+  const totalDamage = allSocs.reduce((a,s)=>a+s.damage, 0);
+  const recents = DB.deliveries.slice(0,5);
+
+  return `
+  <div class="section-label">இன்றைய நிலை — ${fmtDate(todayStr())}</div>
+  <div class="stats-grid">
+    <div class="stat-card accent">
+      <div class="stat-label">மொத்த Stock</div>
+      <div class="stat-val">${fmtNum(total)}</div>
+      <div class="stat-sub">அனைத்து CC</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">இன்று அனுப்பியவை</div>
+      <div class="stat-val">${fmtNum(todayBags)}</div>
+      <div class="stat-sub">bags delivered</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">CC கள்</div>
+      <div class="stat-val">${Object.keys(DB.ccs).length}</div>
+      <div class="stat-sub">Active centers</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">தற்போதைய Rate</div>
+      <div class="stat-val">₹${DB.currentRate}</div>
+      <div class="stat-sub">per bag</div>
+    </div>
+  </div>
+
+  <div class="section-label">CC Stock நிலை</div>
+  <div class="card">
+    ${Object.entries(DB.ccs).map(([id,c])=>{
+      const pct = Math.min(Math.round((c.stock/500)*100), 100);
+      const barClass = c.stock<50?'danger':c.stock<200?'warn':'';
+      return `<div class="list-item">
+        <div class="list-icon" style="background:var(--green-50)">${id.slice(-2)}</div>
+        <div class="list-body">
+          <div class="list-title">${c.name}</div>
+          <div class="list-sub">${c.incharge}</div>
+          <div class="progress"><div class="progress-bar ${barClass}" style="width:${pct}%"></div></div>
+        </div>
+        <div class="list-right">
+          <div class="list-val">${fmtNum(c.stock)}</div>
+          <span class="badge ${stockBadge(c.stock)}" style="font-size:10px">${stockLabel(c.stock)}</span>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="section-label" style="display:flex;justify-content:space-between;align-items:center">
+    சமீபத்திய Deliveries
+    <button class="btn btn-sm" onclick="navigate('feeds')">எல்லாம் பார்</button>
+  </div>
+  <div class="card">
+    ${recents.map(d=>`
+    <div class="list-item">
+      <div class="list-icon" style="background:var(--green-50)">🚚</div>
+      <div class="list-body">
+        <div class="list-title">${d.from} → ${d.to}</div>
+        <div class="list-sub">${fmtDate(d.date)}</div>
+      </div>
+      <div class="list-right">
+        <div class="list-val" style="color:var(--green-700)">${fmtNum(d.bags)}</div>
+        <div class="list-sub2">₹${fmtNum(d.total)}</div>
+      </div>
+    </div>`).join('')}
+  </div>
+
+  ${totalDamage > 20 ? `<div class="alert alert-warn">⚠️ மொத்த Damage ${totalDamage} bags — Reports பார்க்கவும்</div>` : ''}
+  `;
+}
+
+// ═══════════════════════════════════════════════════
+// MANAGER — FEEDS (Send + History)
+// ═══════════════════════════════════════════════════
+function renderFeeds() {
+  const today = DB.deliveries.filter(d=>d.date===todayStr());
+  return `
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab(this,'feedSend')">Feeds அனுப்பு</button>
+    <button class="tab-btn" onclick="switchTab(this,'feedHistory')">வரலாறு</button>
+    <button class="tab-btn" onclick="switchTab(this,'rateTab')">Rate</button>
+  </div>
+
+  <div id="feedSend">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🚚 CC க்கு Feeds அனுப்பு</div></div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <div class="form-label">தேதி</div>
+            <input class="form-input" type="date" id="sf_date" value="${todayStr()}">
+          </div>
+          <div class="form-group">
+            <div class="form-label">CC தேர்வு</div>
+            <select class="form-input" id="sf_cc">
+              ${Object.entries(DB.ccs).map(([id,c])=>`<option value="${id}">${id}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <div class="form-label">Bags எண்ணிக்கை</div>
+            <input class="form-input" type="number" id="sf_bags" placeholder="0" min="1" oninput="previewSend()">
+          </div>
+          <div class="form-group">
+            <div class="form-label">Rate (₹)</div>
+            <input class="form-input" type="number" id="sf_rate" value="${DB.currentRate}" oninput="previewSend()">
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Lorry / குறிப்பு</div>
+          <input class="form-input" type="text" id="sf_note" placeholder="Optional">
+        </div>
+        <div id="sf_preview"></div>
+        <button class="btn btn-primary btn-full" onclick="submitSend()">✅ Confirm & சேமி</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="feedHistory" style="display:none">
+    <div class="search-bar">
+      <span>🔍</span>
+      <input type="text" placeholder="CC தேடு..." oninput="filterDeliveries(this.value)">
+    </div>
+    <div id="deliveryList" class="card">
+      ${renderDeliveryList(DB.deliveries)}
+    </div>
+  </div>
+
+  <div id="rateTab" style="display:none">
+    <div class="stats-grid" style="margin-bottom:12px">
+      <div class="stat-card accent">
+        <div class="stat-label">Current Rate</div>
+        <div class="stat-val">₹${DB.currentRate}</div>
+        <div class="stat-sub">per bag</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Changes</div>
+        <div class="stat-val">${DB.feedRates.length}</div>
+      </div>
+    </div>
+    <div class="card">
+      ${DB.feedRates.slice().reverse().map((r,i,arr)=>{
+        const prev = arr[i+1];
+        const diff = prev ? r.rate - prev.rate : 0;
+        return `<div class="list-item">
+          <div class="list-icon" style="background:var(--amber-50)">₹</div>
+          <div class="list-body">
+            <div class="list-title">₹${r.rate} per bag</div>
+            <div class="list-sub">${fmtDate(r.date)} — ${r.note}</div>
+          </div>
+          <div class="list-right">
+            ${diff>0?`<span class="badge badge-amber">+₹${diff}</span>`:'<span class="badge badge-gray">Base</span>'}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <button class="btn btn-primary btn-full" onclick="openRateSheet()">+ புதிய Rate சேர்</button>
+  </div>
+  `;
+}
+
+function renderDeliveryList(list) {
+  if (!list.length) return `<div class="empty"><div class="e-icon">📭</div><p>Records இல்லை</p></div>`;
+  return list.map(d=>`
+  <div class="list-item">
+    <div class="list-icon" style="background:var(--green-50)">🚚</div>
+    <div class="list-body">
+      <div class="list-title">${d.from} → ${d.to}</div>
+      <div class="list-sub">${fmtDate(d.date)}</div>
+    </div>
+    <div class="list-right">
+      <div class="list-val">${d.bags} bags</div>
+      <div class="list-sub2">₹${fmtNum(d.total)}</div>
+    </div>
+  </div>`).join('');
+}
+
+function previewSend() {
+  const bags = parseInt(document.getElementById('sf_bags')?.value)||0;
+  const rate = parseInt(document.getElementById('sf_rate')?.value)||0;
+  const el = document.getElementById('sf_preview');
+  if (!el) return;
+  if (bags && rate) {
+    el.innerHTML = `<div class="alert alert-success" style="margin-bottom:10px">💰 மொத்தம்: <strong>${fmtNum(bags)} bags × ₹${rate} = ₹${fmtNum(bags*rate)}</strong></div>`;
+  }
+}
+
+function submitSend() {
+  const cc    = document.getElementById('sf_cc').value;
+  const bags  = parseInt(document.getElementById('sf_bags').value)||0;
+  const rate  = parseInt(document.getElementById('sf_rate').value)||0;
+  const date  = document.getElementById('sf_date').value;
+  const note  = document.getElementById('sf_note').value;
+  if (!bags || !cc) { showToast('❌ அளவு பூர்த்தி செய்யவும்'); return; }
+  const rec = {id:uid(),date,from:'Manager',to:cc,bags,rate,total:bags*rate,note,type:'manager-to-cc'};
+  DB.deliveries.unshift(rec);
+  DB.ccs[cc].stock += bags;
+  DB.ccs[cc].totalIn += bags;
+  saveData();
+  showToast(`✅ ${cc} க்கு ${bags} bags அனுப்பப்பட்டது`);
+  navigate('feeds');
+}
+
+function filterDeliveries(q) {
+  const filtered = DB.deliveries.filter(d=>
+    d.from.toLowerCase().includes(q.toLowerCase()) ||
+    d.to.toLowerCase().includes(q.toLowerCase())
+  );
+  document.getElementById('deliveryList').innerHTML = renderDeliveryList(filtered);
+}
+
+function openRateSheet() {
+  openSheet('புதிய Feed Rate', `
+    <div class="form-group"><div class="form-label">தேதி</div><input class="form-input" type="date" id="nr_date" value="${todayStr()}"></div>
+    <div class="form-group"><div class="form-label">புதிய Rate (₹)</div><input class="form-input" type="number" id="nr_rate" placeholder="32"></div>
+    <div class="form-group"><div class="form-label">காரணம்</div><input class="form-input" id="nr_note" placeholder="விலை உயர்வு காரணம்"></div>
+    <button class="btn btn-primary btn-full" onclick="saveRate()">சேமி</button>
+  `);
+}
+
+function saveRate() {
+  const rate = parseInt(document.getElementById('nr_rate').value)||0;
+  const date = document.getElementById('nr_date').value;
+  const note = document.getElementById('nr_note').value || 'Rate update';
+  if (!rate) { showToast('Rate கொடுங்கள்'); return; }
+  DB.feedRates.push({date,rate,note});
+  DB.currentRate = rate;
+  saveData();
+  closeSheet();
+  showToast('✅ Rate புதுப்பிக்கப்பட்டது ₹'+rate);
+  navigate('feeds');
+}
+
+// ═══════════════════════════════════════════════════
+// MANAGER — STOCK
+// ═══════════════════════════════════════════════════
+function renderStock() {
+  const allSocs = Object.values(DB.societies).flat();
+  return `
+  <div class="section-label">CC Stock Overview</div>
+  ${Object.entries(DB.ccs).map(([ccId,cc])=>{
+    const socs = DB.societies[ccId]||[];
+    const pct = Math.min(Math.round((cc.stock/500)*100),100);
+    return `<div class="card" style="margin-bottom:12px">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${cc.name}</div>
+          <div style="font-size:11px;color:var(--text-3)">${cc.incharge}</div>
+        </div>
+        <div style="text-align:right">
+          <span class="badge ${stockBadge(cc.stock)}">${fmtNum(cc.stock)} bags</span>
+          <button class="btn btn-sm" style="margin-top:4px" onclick="openAddStockSheet('${ccId}')">+ Stock</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding-top:10px">
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px">Stock Level</div>
+        <div class="progress" style="height:8px"><div class="progress-bar ${cc.stock<50?'danger':cc.stock<200?'warn':''}" style="width:${pct}%"></div></div>
+        <div style="margin-top:12px">
+          ${socs.length===0?'<div style="color:var(--text-3);font-size:12px">Society இல்லை</div>':
+          socs.map(s=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+            <span>${s.name}</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span class="badge badge-red" style="font-size:10px">⚠️${s.damage}</span>
+              <span class="badge badge-blue" style="font-size:10px">🥛${s.dairy}</span>
+              <span class="badge badge-green" style="font-size:10px">${s.given}bags</span>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  }).join('')}
+  `;
+}
+
+function openAddStockSheet(ccId) {
+  openSheet(`${ccId} — Stock சேர்`, `
+    <div class="form-group"><div class="form-label">சேர்க்க Bags</div><input class="form-input" type="number" id="as_qty" placeholder="100" min="1"></div>
+    <div class="form-group"><div class="form-label">தேதி</div><input class="form-input" type="date" id="as_date" value="${todayStr()}"></div>
+    <div class="form-group"><div class="form-label">குறிப்பு</div><input class="form-input" id="as_note" placeholder="Lorry / source"></div>
+    <button class="btn btn-primary btn-full" onclick="doAddStock('${ccId}')">சேமி</button>
+  `);
+}
+
+function doAddStock(ccId) {
+  const qty = parseInt(document.getElementById('as_qty').value)||0;
+  if (!qty) { showToast('அளவு கொடுங்கள்'); return; }
+  DB.ccs[ccId].stock += qty;
+  DB.ccs[ccId].totalIn += qty;
+  DB.deliveries.unshift({id:uid(),date:document.getElementById('as_date').value,from:'Manager',to:ccId,bags:qty,rate:DB.currentRate,total:qty*DB.currentRate,note:document.getElementById('as_note').value,type:'manager-to-cc'});
+  saveData();
+  closeSheet();
+  showToast(`✅ ${ccId} Stock +${qty}`);
+  navigate('stock');
+}
+
+// ═══════════════════════════════════════════════════
+// MANAGER — REPORTS
+// ═══════════════════════════════════════════════════
+function renderReports() {
+  const allSocs = Object.values(DB.societies).flat();
+  const totalDamage = allSocs.reduce((a,s)=>a+s.damage,0);
+  const totalDairy  = allSocs.reduce((a,s)=>a+s.dairy,0);
+  const totalEggs   = allSocs.reduce((a,s)=>a+s.eggs,0);
+  const totalBags   = DB.deliveries.filter(d=>d.from==='Manager').reduce((a,d)=>a+d.bags,0);
+  const totalVal    = DB.deliveries.filter(d=>d.from==='Manager').reduce((a,d)=>a+d.total,0);
+
+  return `
+  <div class="stats-grid" style="margin-bottom:14px">
+    <div class="stat-card"><div class="stat-label">மொத்த அனுப்பியவை</div><div class="stat-val">${fmtNum(totalBags)}</div><div class="stat-sub">bags</div></div>
+    <div class="stat-card"><div class="stat-label">மொத்த மதிப்பு</div><div class="stat-val">₹${Math.round(totalVal/1000)}K</div></div>
+    <div class="stat-card"><div class="stat-label">மொத்த Damage</div><div class="stat-val">${totalDamage}</div><div class="stat-sub">bags</div></div>
+    <div class="stat-card"><div class="stat-label">Dairy Return</div><div class="stat-val">${totalDairy}</div><div class="stat-sub">kg</div></div>
+  </div>
+
+  <div class="section-label">Reports Export</div>
+  <div class="card card-body">
+    <div class="report-actions">
+      <button class="report-btn green" onclick="exportExcel()">
+        <span class="r-icon">📊</span>Excel Export
+      </button>
+      <button class="report-btn green" onclick="exportPDF()">
+        <span class="r-icon">📄</span>PDF Export
+      </button>
+      <button class="report-btn amber" onclick="shareWhatsApp()">
+        <span class="r-icon">💬</span>WhatsApp Share
+      </button>
+      <button class="report-btn" onclick="shareEmail()">
+        <span class="r-icon">📧</span>Email Report
+      </button>
+    </div>
+  </div>
+
+  <div class="section-label">Damage & Return — Society-வாரி</div>
+  <div class="card">
+    ${Object.entries(DB.societies).map(([ccId,socs])=>socs.map(s=>`
+    <div class="list-item">
+      <div class="list-icon" style="background:var(--red-50)">🏘️</div>
+      <div class="list-body">
+        <div class="list-title">${s.name}</div>
+        <div class="list-sub">${ccId}</div>
+      </div>
+      <div class="list-right" style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
+        <span class="badge badge-red">⚠️ ${s.damage}</span>
+        <span class="badge badge-blue">🥛 ${s.dairy}kg</span>
+        ${s.eggs>0?`<span class="badge badge-amber">🥚 ${s.eggs}</span>`:''}
+      </div>
+    </div>`).join('')).join('')}
+  </div>
+
+  <div class="section-label">Out Feeds Record</div>
+  <div class="card">
+    ${DB.outFeeds.length===0?'<div class="empty"><div class="e-icon">📭</div><p>Records இல்லை</p></div>':
+    DB.outFeeds.map(o=>`
+    <div class="list-item">
+      <div class="list-icon" style="background:var(--amber-50)">📤</div>
+      <div class="list-body">
+        <div class="list-title">${o.type}</div>
+        <div class="list-sub">${o.cc} — ${fmtDate(o.date)}</div>
+      </div>
+      <div class="list-right"><div class="list-val">${o.qty}</div><div class="list-sub2">${o.note}</div></div>
+    </div>`).join('')}
+    <div style="padding:10px 16px">
+      <button class="btn btn-sm btn-primary" onclick="openOutFeedSheet()">+ சேர்</button>
+    </div>
+  </div>
+  `;
+}
+
+function exportExcel() {
+  try {
+    const wb = XLSX.utils.book_new();
+    const delivData = [['Date','From','To','Bags','Rate','Total'],...DB.deliveries.map(d=>[d.date,d.from,d.to,d.bags,d.rate,d.total])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(delivData), 'Deliveries');
+    const socData = [['CC','Society','Target','Given','Damage','Dairy','Eggs','Rate'],...Object.entries(DB.societies).flatMap(([cc,socs])=>socs.map(s=>[cc,s.name,s.target,s.given,s.damage,s.dairy,s.eggs,s.rate]))];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(socData), 'Societies');
+    const stockData = [['CC','Name','Incharge','Stock','Total In'],...Object.entries(DB.ccs).map(([id,c])=>[id,c.name,c.incharge,c.stock,c.totalIn])];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(stockData), 'Stock');
+    XLSX.writeFile(wb, `Feeds_Report_${todayStr()}.xlsx`);
+    showToast('✅ Excel Download ஆகிறது!');
+  } catch(e) { showToast('❌ Export பிழை'); }
+}
+
+function exportPDF() {
+  const win = window.open('', '_blank');
+  const allSocs = Object.values(DB.societies).flat();
+  win.document.write(`<html><head><title>Feeds Report</title><style>
+    body{font-family:Arial,sans-serif;padding:20px;font-size:12px}
+    h1{color:#0a5c45;margin-bottom:4px}table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    th{background:#0a5c45;color:#fff;padding:6px 8px;text-align:left}
+    td{padding:5px 8px;border-bottom:1px solid #e0e0e0}tr:nth-child(even){background:#f5f5f5}
+  </style></head><body>
+    <h1>Feeds Management Report</h1><p>Date: ${new Date().toLocaleDateString()}</p>
+    <h3>Deliveries</h3><table><tr><th>Date</th><th>From</th><th>To</th><th>Bags</th><th>Rate</th><th>Total</th></tr>
+    ${DB.deliveries.map(d=>`<tr><td>${d.date}</td><td>${d.from}</td><td>${d.to}</td><td>${d.bags}</td><td>₹${d.rate}</td><td>₹${d.total}</td></tr>`).join('')}
+    </table><h3>Society Summary</h3><table><tr><th>CC</th><th>Society</th><th>Target</th><th>Given</th><th>Damage</th><th>Dairy</th></tr>
+    ${Object.entries(DB.societies).flatMap(([cc,socs])=>socs.map(s=>`<tr><td>${cc}</td><td>${s.name}</td><td>${s.target}</td><td>${s.given}</td><td>${s.damage}</td><td>${s.dairy}</td></tr>`)).join('')}
+    </table></body></html>`);
+  win.document.close();
+  win.print();
+  showToast('✅ PDF Print window திறக்கிறது');
+}
+
+function shareWhatsApp() {
+  const total = totalStock();
+  const msg = `*Feeds Report — ${new Date().toLocaleDateString()}*\n\n`+
+    `📦 மொத்த Stock: ${fmtNum(total)} bags\n`+
+    `💰 Rate: ₹${DB.currentRate}/bag\n\n`+
+    Object.entries(DB.ccs).map(([id,c])=>`• ${id}: ${c.stock} bags (${stockLabel(c.stock)})`).join('\n')+
+    `\n\n_Feeds Management System_`;
+  const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function shareEmail() {
+  const subj = encodeURIComponent(`Feeds Report — ${new Date().toLocaleDateString()}`);
+  const body = encodeURIComponent(`Feeds Report\n\nDate: ${new Date().toLocaleDateString()}\nTotal Stock: ${totalStock()} bags\nRate: ₹${DB.currentRate}/bag\n\nCC Status:\n`+Object.entries(DB.ccs).map(([id,c])=>`${id}: ${c.stock} bags`).join('\n'));
+  window.location.href = `mailto:?subject=${subj}&body=${body}`;
+}
+
+function openOutFeedSheet() {
+  openSheet('Out Feed சேர்', `
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">தேதி</div><input class="form-input" type="date" id="of_date" value="${todayStr()}"></div>
+      <div class="form-group"><div class="form-label">CC</div><select class="form-input" id="of_cc">${Object.keys(DB.ccs).map(id=>`<option>${id}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-group"><div class="form-label">வகை</div>
+      <select class="form-input" id="of_type"><option>Old Eggs</option><option>Damage Feed</option><option>Expired Feed</option><option>Other</option></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">அளவு</div><input class="form-input" type="number" id="of_qty" placeholder="0"></div>
+      <div class="form-group"><div class="form-label">குறிப்பு</div><input class="form-input" id="of_note"></div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveOutFeed()">சேமி</button>
+  `);
+}
+
+function saveOutFeed() {
+  DB.outFeeds.push({id:uid(),date:document.getElementById('of_date').value,cc:document.getElementById('of_cc').value,type:document.getElementById('of_type').value,qty:parseInt(document.getElementById('of_qty').value)||0,note:document.getElementById('of_note').value,amount:0});
+  saveData(); closeSheet(); showToast('✅ சேமிக்கப்பட்டது'); navigate('reports');
+}
+
+// ═══════════════════════════════════════════════════
+// MANAGER — SETTINGS (CC Manage + Users)
+// ═══════════════════════════════════════════════════
+function renderSettings() {
+  return `
+  <div class="section-label">CC Management</div>
+  <div class="card">
+    ${Object.entries(DB.ccs).map(([id,c])=>`
+    <div class="list-item">
+      <div class="list-icon" style="background:var(--green-50);font-size:11px;font-weight:700;color:var(--green-800)">${id.split('-')[1]}</div>
+      <div class="list-body">
+        <div class="list-title">${c.name}</div>
+        <div class="list-sub">Incharge: ${c.incharge}</div>
+      </div>
+      <div class="list-right">
+        <span class="badge ${stockBadge(c.stock)}">${c.stock}</span>
+      </div>
+    </div>`).join('')}
+    <div style="padding:10px 16px"><button class="btn btn-sm btn-primary" onclick="openAddCCSheet()">+ புதிய CC</button></div>
+  </div>
+
+  <div class="section-label">Users</div>
+  <div class="card">
+    ${DB.users.map(u=>`
+    <div class="list-item">
+      <div class="user-avatar" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${u.name[0]}</div>
+      <div class="list-body">
+        <div class="list-title">${u.name}</div>
+        <div class="list-sub">${u.username} — ${u.role}${u.cc?' ('+u.cc+')':''}</div>
+      </div>
+      <span class="badge ${u.role==='manager'?'badge-green':'badge-blue'}">${u.role}</span>
+    </div>`).join('')}
+    <div style="padding:10px 16px"><button class="btn btn-sm btn-primary" onclick="openAddUserSheet()">+ User சேர்</button></div>
+  </div>
+
+  <div class="section-label">Data Backup</div>
+  <div class="card card-body">
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:10px">உங்கள் data locally saved ஆகிறது. Export பண்ணி backup வைக்கலாம்.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" onclick="backupData()">📥 Backup Export</button>
+      <button class="btn btn-sm" onclick="importBackup()">📤 Backup Import</button>
+      <button class="btn btn-sm btn-danger" onclick="resetData()">🔄 Reset</button>
+    </div>
+  </div>
+  `;
+}
+
+function openAddCCSheet() {
+  openSheet('புதிய CC சேர்', `
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">CC ID (eg: CC-XX)</div><input class="form-input" id="nc_id" placeholder="CC-XX"></div>
+      <div class="form-group"><div class="form-label">பெயர்</div><input class="form-input" id="nc_name"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">Incharge பெயர்</div><input class="form-input" id="nc_inc"></div>
+      <div class="form-group"><div class="form-label">ஆரம்ப Stock</div><input class="form-input" type="number" id="nc_stk" placeholder="0"></div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveCC()">சேமி</button>
+  `);
+}
+
+function saveCC() {
+  const id = document.getElementById('nc_id').value.toUpperCase().trim();
+  if (!id) { showToast('CC ID கொடுங்கள்'); return; }
+  DB.ccs[id] = {name:document.getElementById('nc_name').value||id,incharge:document.getElementById('nc_inc').value||'-',stock:parseInt(document.getElementById('nc_stk').value)||0,totalIn:parseInt(document.getElementById('nc_stk').value)||0};
+  DB.societies[id] = [];
+  saveData(); closeSheet(); showToast('✅ CC சேர்க்கப்பட்டது'); navigate('settings');
+}
+
+function openAddUserSheet() {
+  openSheet('User சேர்', `
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">பெயர்</div><input class="form-input" id="nu_name"></div>
+      <div class="form-group"><div class="form-label">Username</div><input class="form-input" id="nu_uname"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">Password</div><input class="form-input" id="nu_pass" type="password" value="1234"></div>
+      <div class="form-group"><div class="form-label">Role</div>
+        <select class="form-input" id="nu_role" onchange="document.getElementById('nu_cc_wrap').style.display=this.value==='cc'?'block':'none'">
+          <option value="cc">CC Incharge</option><option value="manager">Manager</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" id="nu_cc_wrap"><div class="form-label">CC</div>
+      <select class="form-input" id="nu_cc">${Object.keys(DB.ccs).map(id=>`<option>${id}</option>`).join('')}</select>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveUser()">சேமி</button>
+  `);
+}
+
+function saveUser() {
+  const u = {id:uid(),name:document.getElementById('nu_name').value,username:document.getElementById('nu_uname').value,password:document.getElementById('nu_pass').value,role:document.getElementById('nu_role').value,cc:document.getElementById('nu_role').value==='cc'?document.getElementById('nu_cc').value:null};
+  DB.users.push(u); saveData(); closeSheet(); showToast('✅ User சேர்க்கப்பட்டது'); navigate('settings');
+}
+
+function backupData() {
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(DB,null,2));
+  a.download = `feeds_backup_${todayStr()}.json`; a.click();
+  showToast('✅ Backup downloaded!');
+}
+
+function importBackup() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json';
+  inp.onchange = e => {
+    const r = new FileReader();
+    r.onload = ev => { try { DB = JSON.parse(ev.target.result); saveData(); showToast('✅ Import வெற்றி!'); navigate('home'); } catch { showToast('❌ File பிழை'); }};
+    r.readAsText(e.target.files[0]);
+  };
+  inp.click();
+}
+
+function resetData() {
+  if (confirm('எல்லா data-வும் reset ஆகும்! உறுதியா?')) { DB = getDefaultData(); saveData(); showToast('🔄 Reset!'); navigate('home'); }
+}
+
+// ═══════════════════════════════════════════════════
+// CC INCHARGE — HOME
+// ═══════════════════════════════════════════════════
+function renderCCHome() {
+  const cc = SESSION.cc;
+  const ccData = DB.ccs[cc];
+  const socs = DB.societies[cc]||[];
+  const totalGiven = socs.reduce((a,s)=>a+s.given,0);
+  const totalDamage = socs.reduce((a,s)=>a+s.damage,0);
+
+  return `
+  <div class="section-label">${cc} — ${fmtDate(todayStr())}</div>
+  <div class="stats-grid">
+    <div class="stat-card accent">
+      <div class="stat-label">என்னிடம் Stock</div>
+      <div class="stat-val">${fmtNum(ccData.stock)}</div>
+      <div class="stat-sub">bags available</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Societies</div>
+      <div class="stat-val">${socs.length}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">கொடுத்தவை</div>
+      <div class="stat-val">${fmtNum(totalGiven)}</div>
+      <div class="stat-sub">bags total</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Damage</div>
+      <div class="stat-val">${totalDamage}</div>
+    </div>
+  </div>
+
+  ${ccData.stock < 100 ? '<div class="alert alert-warn">⚠️ Stock குறைவாக உள்ளது! Manager-ஐ தொடர்பு கொள்ளவும்.</div>' : ''}
+
+  <div class="section-label">என் Societies</div>
+  <div class="card">
+    ${socs.length===0?'<div class="empty"><div class="e-icon">🏘️</div><p>Society இல்லை — சேர்க்கவும்</p></div>':
+    socs.map(s=>`
+    <div class="list-item">
+      <div class="list-icon" style="background:var(--green-50)">🏘️</div>
+      <div class="list-body">
+        <div class="list-title">${s.name}</div>
+        <div class="list-sub">Target: ${s.target} | கொடுத்தவை: ${s.given}</div>
+      </div>
+      <div class="list-right" style="display:flex;flex-direction:column;gap:2px;align-items:flex-end">
+        <span class="badge badge-green">${s.given}/${s.target}</span>
+        ${s.damage>0?`<span class="badge badge-red">⚠️${s.damage}</span>`:''}
+      </div>
+    </div>`).join('')}
+  </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════
+// CC — SOCIETIES
+// ═══════════════════════════════════════════════════
+function renderSocieties() {
+  const cc = SESSION.cc;
+  const socs = DB.societies[cc]||[];
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="section-label" style="margin:0">${cc} — Societies (${socs.length})</div>
+    <button class="btn btn-sm btn-primary" onclick="openAddSocSheet()">+ சேர்</button>
+  </div>
+
+  <div class="section-label">Excel Paste Import</div>
+  <div class="card card-body" style="margin-bottom:12px">
+    <div class="form-label" style="margin-bottom:6px">Excel-ல் இருந்து paste செய்யுங்கள் (Name,Target,Given format)</div>
+    <textarea id="pasteArea" class="form-input" style="height:80px;resize:vertical" placeholder="Natham Society,200,180&#10;Kiliyur Society,150,140"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-sm" onclick="previewImport()">Preview</button>
+      <button class="btn btn-sm btn-primary" onclick="doImport()">Import</button>
+    </div>
+    <div id="importPreview"></div>
+  </div>
+
+  <div class="card">
+    ${socs.length===0?'<div class="empty"><div class="e-icon">🏘️</div><p>Society இல்லை</p></div>':
+    socs.map((s,i)=>`
+    <div class="list-item" onclick="openEditSoc(${i})" style="cursor:pointer">
+      <div class="list-icon" style="background:var(--green-50)">🏘️</div>
+      <div class="list-body">
+        <div class="list-title">${s.name}</div>
+        <div class="list-sub">Rate: ₹${s.rate} | Target: ${s.target} bags</div>
+      </div>
+      <div class="list-right" style="display:flex;flex-direction:column;gap:2px;align-items:flex-end">
+        <span class="badge badge-green">${s.given} bags</span>
+        ${s.damage>0?`<span class="badge badge-red">⚠️${s.damage}</span>`:''}
+        ${s.dairy>0?`<span class="badge badge-blue">🥛${s.dairy}</span>`:''}
+        <span style="font-size:10px;color:var(--text-3)">Edit ▸</span>
+      </div>
+    </div>`).join('')}
+  </div>
+  `;
+}
+
+function openAddSocSheet() {
+  openSheet('புதிய Society சேர்', `
+    <div class="form-group"><div class="form-label">Society பெயர்</div><input class="form-input" id="ns_name" placeholder="Natham Society"></div>
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">Target (bags)</div><input class="form-input" type="number" id="ns_tgt" placeholder="100"></div>
+      <div class="form-group"><div class="form-label">Rate (₹)</div><input class="form-input" type="number" id="ns_rate" value="${DB.currentRate}"></div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveSoc()">சேமி</button>
+  `);
+}
+
+function saveSoc() {
+  const cc = SESSION.cc;
+  const s = {id:uid(),name:document.getElementById('ns_name').value,target:parseInt(document.getElementById('ns_tgt').value)||0,given:0,damage:0,dairy:0,eggs:0,rate:parseInt(document.getElementById('ns_rate').value)||DB.currentRate,active:true};
+  (DB.societies[cc]=DB.societies[cc]||[]).push(s);
+  saveData(); closeSheet(); showToast('✅ Society சேர்க்கப்பட்டது'); navigate('societies');
+}
+
+function openEditSoc(i) {
+  const cc = SESSION.cc;
+  const s = DB.societies[cc][i];
+  openSheet(`${s.name} — Edit`, `
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">பெயர்</div><input class="form-input" id="es_name" value="${s.name}"></div>
+      <div class="form-group"><div class="form-label">Target</div><input class="form-input" type="number" id="es_tgt" value="${s.target}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">Damage (bags)</div><input class="form-input" type="number" id="es_dmg" value="${s.damage}"></div>
+      <div class="form-group"><div class="form-label">Dairy Return (kg)</div><input class="form-input" type="number" id="es_dairy" value="${s.dairy}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><div class="form-label">Eggs</div><input class="form-input" type="number" id="es_eggs" value="${s.eggs}"></div>
+      <div class="form-group"><div class="form-label">Rate (₹)</div><input class="form-input" type="number" id="es_rate" value="${s.rate}"></div>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="saveEditSoc(${i})">சேமி</button>
+  `);
+}
+
+function saveEditSoc(i) {
+  const cc = SESSION.cc;
+  const s = DB.societies[cc][i];
+  s.name  = document.getElementById('es_name').value;
+  s.target= parseInt(document.getElementById('es_tgt').value)||s.target;
+  s.damage= parseInt(document.getElementById('es_dmg').value)||0;
+  s.dairy = parseInt(document.getElementById('es_dairy').value)||0;
+  s.eggs  = parseInt(document.getElementById('es_eggs').value)||0;
+  s.rate  = parseInt(document.getElementById('es_rate').value)||s.rate;
+  saveData(); closeSheet(); showToast('✅ சேமிக்கப்பட்டது'); navigate('societies');
+}
+
+function previewImport() {
+  const lines = document.getElementById('pasteArea').value.trim().split('\n').filter(l=>l.trim());
+  document.getElementById('importPreview').innerHTML = `
+    <div class="alert alert-success" style="margin-top:8px">${lines.length} rows found — preview:</div>
+    <div style="font-size:11px;color:var(--text-2);padding:6px 0">${lines.slice(0,3).map(l=>l).join('<br>')}</div>`;
+}
+
+function doImport() {
+  const cc = SESSION.cc;
+  const lines = document.getElementById('pasteArea').value.trim().split('\n').filter(l=>l.trim());
+  let added = 0;
+  lines.forEach(l => {
+    const p = l.split(',');
+    if (p[0]?.trim()) {
+      (DB.societies[cc]=DB.societies[cc]||[]).push({id:uid(),name:p[0].trim(),target:parseInt(p[1])||0,given:parseInt(p[2])||0,damage:0,dairy:0,eggs:0,rate:DB.currentRate,active:true});
+      added++;
+    }
+  });
+  saveData();
+  document.getElementById('pasteArea').value = '';
+  document.getElementById('importPreview').innerHTML = `<div class="alert alert-success" style="margin-top:8px">✅ ${added} Societies import ஆனது!</div>`;
+  showToast(`✅ ${added} records imported`);
+}
+
+// ═══════════════════════════════════════════════════
+// CC — GIVE FEEDS
+// ═══════════════════════════════════════════════════
+function renderGive() {
+  const cc = SESSION.cc;
+  const ccData = DB.ccs[cc];
+  const socs = (DB.societies[cc]||[]).filter(s=>s.active);
+  return `
+  <div class="stats-grid" style="margin-bottom:14px">
+    <div class="stat-card accent"><div class="stat-label">என்னிடம் Stock</div><div class="stat-val">${fmtNum(ccData.stock)}</div></div>
+    <div class="stat-card"><div class="stat-label">Rate</div><div class="stat-val">₹${DB.currentRate}</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">🚜 Society க்கு Feeds கொடு</div></div>
+    <div class="card-body">
+      ${socs.length === 0 ? '<div class="alert alert-warn">Society இல்லை — Societies tab-ல் சேர்க்கவும்</div>' : `
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">தேதி</div><input class="form-input" type="date" id="gf_date" value="${todayStr()}"></div>
+        <div class="form-group"><div class="form-label">Society</div>
+          <select class="form-input" id="gf_soc">${socs.map((s,i)=>`<option value="${i}">${s.name}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Bags</div><input class="form-input" type="number" id="gf_bags" placeholder="0" oninput="previewGive()"></div>
+        <div class="form-group"><div class="form-label">Rate (₹)</div><input class="form-input" type="number" id="gf_rate" value="${DB.currentRate}" oninput="previewGive()"></div>
+      </div>
+      <div id="gf_preview"></div>
+      <div id="gf_msg"></div>
+      <button class="btn btn-primary btn-full" onclick="doGive()">✅ கொடு & சேமி</button>
+      `}
+    </div>
+  </div>
+
+  <div class="section-label">இன்றைய Deliveries</div>
+  <div class="card">
+    ${DB.deliveries.filter(d=>d.from===cc&&d.date===todayStr()).length===0
+      ?'<div class="empty"><div class="e-icon">📭</div><p>இன்று இல்லை</p></div>'
+      :DB.deliveries.filter(d=>d.from===cc&&d.date===todayStr()).map(d=>`
+      <div class="list-item">
+        <div class="list-icon" style="background:var(--green-50)">🚜</div>
+        <div class="list-body"><div class="list-title">${d.to}</div><div class="list-sub">${d.bags} bags @ ₹${d.rate}</div></div>
+        <div class="list-right"><div class="list-val">₹${fmtNum(d.total)}</div></div>
+      </div>`).join('')}
+  </div>
+  `;
+}
+
+function previewGive() {
+  const bags = parseInt(document.getElementById('gf_bags')?.value)||0;
+  const rate = parseInt(document.getElementById('gf_rate')?.value)||0;
+  const el = document.getElementById('gf_preview');
+  if (!el) return;
+  const cc = SESSION.cc;
+  const stock = DB.ccs[cc].stock;
+  if (bags > stock) {
+    el.innerHTML = `<div class="alert alert-danger" style="margin-bottom:8px">❌ Stock போதவில்லை! (${stock} bags மட்டும் உள்ளது)</div>`;
+  } else if (bags && rate) {
+    el.innerHTML = `<div class="alert alert-success" style="margin-bottom:8px">💰 மொத்தம்: ${bags} × ₹${rate} = ₹${fmtNum(bags*rate)}</div>`;
+  }
+}
+
+function doGive() {
+  const cc = SESSION.cc;
+  const socs = (DB.societies[cc]||[]).filter(s=>s.active);
+  const idx  = parseInt(document.getElementById('gf_soc').value);
+  const bags = parseInt(document.getElementById('gf_bags').value)||0;
+  const rate = parseInt(document.getElementById('gf_rate').value)||DB.currentRate;
+  const date = document.getElementById('gf_date').value;
+
+  if (!bags) { showToast('அளவு கொடுங்கள்'); return; }
+  if (bags > DB.ccs[cc].stock) { showToast('❌ Stock போதவில்லை!'); return; }
+
+  const soc = socs[idx];
+  soc.given += bags;
+  DB.ccs[cc].stock -= bags;
+  DB.deliveries.unshift({id:uid(),date,from:cc,to:soc.name,bags,rate,total:bags*rate,type:'cc-to-soc'});
+  saveData();
+  showToast(`✅ ${soc.name} க்கு ${bags} bags`);
+  navigate('give');
+}
+
+// ═══════════════════════════════════════════════════
+// CC — RECORDS
+// ═══════════════════════════════════════════════════
+function renderCCRecords() {
+  const cc = SESSION.cc;
+  const recs = DB.deliveries.filter(d=>d.from===cc||d.to===cc);
+  const totalIn  = recs.filter(d=>d.to===cc).reduce((a,d)=>a+d.bags,0);
+  const totalOut = recs.filter(d=>d.from===cc).reduce((a,d)=>a+d.bags,0);
+  return `
+  <div class="stats-grid" style="margin-bottom:14px">
+    <div class="stat-card"><div class="stat-label">மொத்த IN</div><div class="stat-val">${fmtNum(totalIn)}</div><div class="stat-sub">பெற்றவை</div></div>
+    <div class="stat-card"><div class="stat-label">மொத்த OUT</div><div class="stat-val">${fmtNum(totalOut)}</div><div class="stat-sub">கொடுத்தவை</div></div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+    <button class="btn btn-sm btn-primary" onclick="exportCCExcel()">📊 Export Excel</button>
+  </div>
+  <div class="card">
+    ${recs.length===0?'<div class="empty"><div class="e-icon">📭</div><p>Records இல்லை</p></div>':
+    recs.map(d=>{
+      const isIn = d.to===cc;
+      return `<div class="list-item">
+        <div class="list-icon" style="background:${isIn?'var(--green-50)':'var(--amber-50)'}">${isIn?'📥':'📤'}</div>
+        <div class="list-body">
+          <div class="list-title">${isIn?d.from:d.to}</div>
+          <div class="list-sub">${fmtDate(d.date)} — ${isIn?'பெற்றது':'கொடுத்தது'}</div>
+        </div>
+        <div class="list-right">
+          <div class="list-val" style="color:${isIn?'var(--green-700)':'var(--amber-600)'}">${isIn?'+':'-'}${d.bags}</div>
+          <div class="list-sub2">₹${fmtNum(d.total)}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+  `;
+}
+
+function exportCCExcel() {
+  const cc = SESSION.cc;
+  const recs = DB.deliveries.filter(d=>d.from===cc||d.to===cc);
+  const wb = XLSX.utils.book_new();
+  const data = [['Date','Type','From/To','Bags','Rate','Total'],...recs.map(d=>[d.date,d.to===cc?'IN':'OUT',d.to===cc?d.from:d.to,d.bags,d.rate,d.total])];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Records');
+  XLSX.writeFile(wb, `${cc}_Records_${todayStr()}.xlsx`);
+  showToast('✅ Excel download!');
+}
+
+// ═══════════════════════════════════════════════════
+// CC — DAMAGE & RETURN
+// ═══════════════════════════════════════════════════
+function renderDamage() {
+  const cc = SESSION.cc;
+  const socs = DB.societies[cc]||[];
+  const myRecs = DB.damageRecords.filter(d=>d.cc===cc);
+  return `
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-header"><div class="card-title">⚠️ Damage / Return பதிவு</div></div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">Society</div>
+          <select class="form-input" id="cd_soc">${socs.map((s,i)=>`<option value="${i}">${s.name}</option>`).join('')}</select>
+        </div>
+        <div class="form-group"><div class="form-label">வகை</div>
+          <select class="form-input" id="cd_type"><option>Damage Feed</option><option>Dairy Return</option><option>Old Eggs</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><div class="form-label">அளவு</div><input class="form-input" type="number" id="cd_qty" placeholder="0"></div>
+        <div class="form-group"><div class="form-label">தேதி</div><input class="form-input" type="date" id="cd_date" value="${todayStr()}"></div>
+      </div>
+      <div class="form-group"><div class="form-label">குறிப்பு</div><input class="form-input" id="cd_note" placeholder="Optional"></div>
+      <button class="btn btn-primary btn-full" onclick="saveDamageRec()">சேமி</button>
+    </div>
+  </div>
+
+  <div class="section-label">Society நிலை</div>
+  <div class="card">
+    ${socs.map(s=>`
+    <div class="list-item">
+      <div class="list-icon" style="background:var(--red-50)">🏘️</div>
+      <div class="list-body">
+        <div class="list-title">${s.name}</div>
+        <div class="list-sub">Given: ${s.given} bags</div>
+      </div>
+      <div class="list-right" style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">
+        <span class="badge badge-red">⚠️ ${s.damage} bags</span>
+        <span class="badge badge-blue">🥛 ${s.dairy} kg</span>
+        ${s.eggs>0?`<span class="badge badge-amber">🥚 ${s.eggs}</span>`:''}
+      </div>
+    </div>`).join('')}
+  </div>
+
+  <div class="section-label">Records</div>
+  <div class="card">
+    ${myRecs.length===0?'<div class="empty"><div class="e-icon">📭</div><p>Records இல்லை</p></div>':
+    myRecs.map(r=>`
+    <div class="list-item">
+      <div class="list-icon" style="background:var(--red-50)">⚠️</div>
+      <div class="list-body">
+        <div class="list-title">${r.society} — ${r.type}</div>
+        <div class="list-sub">${fmtDate(r.date)} ${r.note?'— '+r.note:''}</div>
+      </div>
+      <div class="list-right"><div class="list-val">${r.qty}</div></div>
+    </div>`).join('')}
+  </div>
+  `;
+}
+
+function saveDamageRec() {
+  const cc = SESSION.cc;
+  const socs = DB.societies[cc]||[];
+  const idx  = parseInt(document.getElementById('cd_soc').value);
+  const type = document.getElementById('cd_type').value;
+  const qty  = parseInt(document.getElementById('cd_qty').value)||0;
+  const date = document.getElementById('cd_date').value;
+  const note = document.getElementById('cd_note').value;
+  const soc  = socs[idx];
+  if (!soc || !qty) { showToast('தகவல் கொடுங்கள்'); return; }
+  if (type==='Damage Feed') soc.damage += qty;
+  else if (type==='Dairy Return') soc.dairy += qty;
+  else soc.eggs += qty;
+  DB.damageRecords.push({id:uid(),date,cc,society:soc.name,type,qty,note});
+  saveData();
+  showToast('✅ பதிவு சேமிக்கப்பட்டது');
+  navigate('damage');
+}
+
+// ═══════════════════════════════════════════════════
+// UTIL — TAB SWITCHER
+// ═══════════════════════════════════════════════════
+function switchTab(btn, showId) {
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['feedSend','feedHistory','rateTab'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  const target = document.getElementById(showId);
+  if(target) target.style.display='block';
+}
+
+function attachPageHandlers(page) {
+  if (page==='feeds') previewSend();
+}
+</script>
+</body>
+</html>
