@@ -232,6 +232,7 @@ select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
       </div>
     </div>
     <div class="topbar-right">
+      <span id="syncStatus" style="font-size:10px;color:rgba(255,255,255,0.8);margin-right:4px"></span>
       <div class="user-pill" onclick="logout()">
         <div class="user-avatar" id="topAvatar">M</div>
         <span id="topUserName">User</span>
@@ -265,6 +266,9 @@ select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
 const STORE_KEY = 'feeds_app_v4';
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbw_0Y9qhiPCkRhXJX0b7Vgk3bYkShy6FWQBYu7dGL06v-eiyLWfa_p_coen40QSeQKc/exec';
 
+// ═══════════════════════════════════════════════════
+// DATA — Google Sheets as primary DB, localStorage as cache
+// ═══════════════════════════════════════════════════
 function loadData() {
   const saved = localStorage.getItem(STORE_KEY);
   if (saved) return JSON.parse(saved);
@@ -275,37 +279,47 @@ function saveData() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(DB));
     localStorage.setItem('feeds_app_backup_'+new Date().toISOString().slice(0,10), JSON.stringify(DB));
-  } catch(e) {
-    console.error('LocalStorage error:', e);
-  }
-  syncStockToSheets(); // background, won't block save
+  } catch(e) { console.error('LocalStorage error:', e); }
+  pushToSheets();
 }
 
-async function sheetsPost(payload) {
+async function pushToSheets() {
   try {
-    // Google Apps Script needs form-encoded or URL param approach for CORS
-    const params = new URLSearchParams();
-    params.append('data', JSON.stringify(payload));
-    await fetch(SHEETS_URL, {
+    const res = await fetch(SHEETS_URL + '?action=save', {
       method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString()
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'save', db: DB })
     });
-  } catch(e) { /* silent */ }
+    const json = await res.json();
+    if (json.status !== 'ok') console.warn('Sheets save warn:', json.msg);
+  } catch(e) { console.warn('Sheets push failed (offline?):', e.message); }
 }
 
-async function syncStockToSheets() {
-  await sheetsPost({ action: 'syncStock', ccs: DB.ccs });
+async function pullFromSheets() {
+  try {
+    showSyncStatus('🔄 Loading...');
+    const res = await fetch(SHEETS_URL + '?action=load');
+    const json = await res.json();
+    if (json.status === 'ok' && json.db) {
+      DB = json.db;
+      localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+      showSyncStatus('✅ Synced');
+      navigate(ACTIVE_TAB);
+    } else {
+      showSyncStatus('⚠️ Local data');
+    }
+  } catch(e) {
+    showSyncStatus('📴 Offline');
+  }
 }
 
-async function syncDeliveryToSheets(delivery) {
-  await sheetsPost({ action: 'syncDelivery', delivery });
+function showSyncStatus(msg) {
+  const el = document.getElementById('syncStatus');
+  if (el) { el.textContent = msg; setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 3000); }
 }
 
-async function syncStockLogToSheets(log) {
-  await sheetsPost({ action: 'syncStockLog', log });
-}
+async function syncDeliveryToSheets(delivery) { /* handled by pushToSheets */ }
+async function syncStockLogToSheets(log) { /* handled by pushToSheets */ }
 
 function getDefaultData() {
   return {
@@ -327,13 +341,9 @@ let SESSION = { role:null, cc:null, user:null, loginRole:'manager' };
 let ACTIVE_TAB = 'home';
 
 async function manualSyncSheets() {
-  showToast('🔄 Syncing to Google Sheets...');
-  try {
-    await sheetsPost({ action: 'syncStock', ccs: DB.ccs });
-    setTimeout(() => showToast('✅ Sync அனுப்பப்பட்டது! Sheets சரிபார்க்கவும்'), 1500);
-  } catch(e) {
-    showToast('❌ Network பிழை — இணையம் சரிபார்க்கவும்');
-  }
+  showToast('🔄 Google Sheets-இலிருந்து load ஆகுது...');
+  await pullFromSheets();
+  showToast('✅ Sync முடிந்தது!');
 }
 
 // ═══════════════════════════════════════════════════
@@ -384,6 +394,7 @@ function doLogin() {
   document.getElementById('app').style.display = 'flex';
   buildNav();
   navigate('home');
+  pullFromSheets(); // sync latest data from Google Sheets
 }
 
 function logout() {
