@@ -262,7 +262,8 @@ select.form-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
 // ═══════════════════════════════════════════════════
 // DATA STORE (LocalStorage backed)
 // ═══════════════════════════════════════════════════
-const STORE_KEY = 'feeds_app_v3';
+const STORE_KEY = 'feeds_app_v4';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbw_0Y9qhiPCkRhXJX0b7Vgk3bYkShy6FWQBYu7dGL06v-eiyLWfa_p_coen40QSeQKc/exec';
 
 function loadData() {
   const saved = localStorage.getItem(STORE_KEY);
@@ -273,6 +274,34 @@ function loadData() {
 function saveData() {
   localStorage.setItem(STORE_KEY, JSON.stringify(DB));
   localStorage.setItem('feeds_app_backup_'+new Date().toISOString().slice(0,10), JSON.stringify(DB));
+  syncStockToSheets();
+}
+
+async function syncStockToSheets() {
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'syncStock', ccs: DB.ccs })
+    });
+  } catch(e) { /* silent fail */ }
+}
+
+async function syncDeliveryToSheets(delivery) {
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'syncDelivery', delivery })
+    });
+  } catch(e) { /* silent fail */ }
+}
+
+async function syncStockLogToSheets(log) {
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'syncStockLog', log })
+    });
+  } catch(e) { /* silent fail */ }
 }
 
 function getDefaultData() {
@@ -293,6 +322,21 @@ function getDefaultData() {
 let DB = loadData();
 let SESSION = { role:null, cc:null, user:null, loginRole:'manager' };
 let ACTIVE_TAB = 'home';
+
+async function manualSyncSheets() {
+  showToast('🔄 Syncing...');
+  try {
+    const res = await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'syncStock', ccs: DB.ccs })
+    });
+    const json = await res.json();
+    if (json.status === 'ok') showToast('✅ Google Sheets Sync வெற்றி!');
+    else showToast('❌ Sync பிழை');
+  } catch(e) {
+    showToast('❌ Network பிழை — இணையம் சரிபார்க்கவும்');
+  }
+}
 
 // ═══════════════════════════════════════════════════
 // AUTH
@@ -634,6 +678,7 @@ function submitSend() {
   DB.ccs[cc].stock += bags;
   DB.ccs[cc].totalIn += bags;
   saveData();
+  syncDeliveryToSheets(rec);
   showToast(`✅ ${cc} க்கு ${bags} bags அனுப்பப்பட்டது`);
   navigate('feeds');
 }
@@ -686,7 +731,10 @@ function renderStock() {
         </div>
         <div style="text-align:right">
           <span class="badge ${stockBadge(cc.stock)}">${fmtNum(cc.stock)} bags</span>
-          <button class="btn btn-sm" style="margin-top:4px" onclick="openAddStockSheet('${ccId}')">+ Stock</button>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-sm" onclick="openAddStockSheet('${ccId}')">+ Stock</button>
+            <button class="btn btn-sm" style="background:var(--amber-50);border-color:var(--amber-100);color:var(--amber-600)" onclick="openAlterStockSheet('${ccId}')">✏️ Alter</button>
+          </div>
         </div>
       </div>
       <div class="card-body" style="padding-top:10px">
@@ -727,6 +775,82 @@ function doAddStock(ccId) {
   saveData();
   closeSheet();
   showToast(`✅ ${ccId} Stock +${qty}`);
+  navigate('stock');
+}
+
+// ═══════════════════════════════════════════════════
+// MANAGER — STOCK ALTER
+// ═══════════════════════════════════════════════════
+function openAlterStockSheet(ccId) {
+  const cc = DB.ccs[ccId];
+  openSheet(`✏️ ${ccId} — Stock Alter`, `
+    <div class="alert alert-warn" style="margin-bottom:12px">
+      ⚠️ தற்போதைய Stock: <strong>${fmtNum(cc.stock)} bags</strong>
+    </div>
+    <div class="form-group">
+      <div class="form-label">வகை (Type)</div>
+      <select class="form-input" id="sa_type">
+        <option value="add">➕ Stock சேர் (Add)</option>
+        <option value="subtract">➖ Stock குறை (Subtract)</option>
+        <option value="set">🎯 Stock நேரடியா Set பண்ணு</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <div class="form-label">அளவு (Bags)</div>
+      <input class="form-input" type="number" id="sa_qty" placeholder="0" min="0">
+    </div>
+    <div class="form-group">
+      <div class="form-label">தேதி</div>
+      <input class="form-input" type="date" id="sa_date" value="${todayStr()}">
+    </div>
+    <div class="form-group">
+      <div class="form-label">காரணம் (Reason) *</div>
+      <input class="form-input" id="sa_reason" placeholder="eg: Lorry தவறு, கணக்கு சரி பண்றோம்...">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doAlterStock('${ccId}')">✅ Alter பண்ணு</button>
+  `);
+}
+
+function doAlterStock(ccId) {
+  const cc     = DB.ccs[ccId];
+  const type   = document.getElementById('sa_type').value;
+  const qty    = parseInt(document.getElementById('sa_qty').value)||0;
+  const date   = document.getElementById('sa_date').value;
+  const reason = document.getElementById('sa_reason').value.trim();
+
+  if (!qty)    { showToast('அளவு கொடுங்கள்'); return; }
+  if (!reason) { showToast('காரணம் கொடுங்கள்'); return; }
+
+  const before = cc.stock;
+  let after, change;
+
+  if (type === 'add') {
+    after  = before + qty;
+    change = +qty;
+  } else if (type === 'subtract') {
+    after  = Math.max(0, before - qty);
+    change = -(before - after);
+  } else {
+    after  = qty;
+    change = qty - before;
+  }
+
+  cc.stock = after;
+
+  // StockLog record
+  if (!DB.stockLog) DB.stockLog = [];
+  const log = {
+    id: uid(), date, cc: ccId,
+    type: type === 'add' ? 'ADD' : type === 'subtract' ? 'SUBTRACT' : 'SET',
+    before, change, after, reason,
+    by: SESSION.user.name
+  };
+  DB.stockLog.push(log);
+
+  saveData();
+  syncStockLogToSheets(log);
+  closeSheet();
+  showToast(`✅ ${ccId} Stock: ${before} → ${after} bags`);
   navigate('stock');
 }
 
@@ -911,16 +1035,52 @@ function renderSettings() {
     <div style="padding:10px 16px"><button class="btn btn-sm btn-primary" onclick="openAddUserSheet()">+ User சேர்</button></div>
   </div>
 
+  <div class="section-label">Google Sheets Sync</div>
+  <div class="card card-body" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:22px">📊</span>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Google Sheets Live Sync</div>
+        <div style="font-size:11px;color:var(--text-3)">Stock save ஆகும் போது auto sync ஆகும்</div>
+      </div>
+      <span class="badge badge-green" style="margin-left:auto">🟢 Active</span>
+    </div>
+    <button class="btn btn-sm btn-primary btn-full" onclick="manualSyncSheets()">🔄 இப்போதே Sync பண்ணு</button>
+  </div>
+
   <div class="section-label">Data Backup</div>
   <div class="card card-body">
-    <div style="font-size:13px;color:var(--text-2);margin-bottom:10px">உங்கள் data locally saved ஆகிறது. Export பண்ணி backup வைக்கலாம்.</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-sm" onclick="backupData()">📥 Backup Export</button>
-      <button class="btn btn-sm" onclick="importBackup()">📤 Backup Import</button>
-      <button class="btn btn-sm btn-danger" onclick="resetData()">🔄 Reset</button>
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:4px;font-weight:600">📦 JSON Backup</div>
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:12px">எல்லா data-வையும் JSON file-ஆ export பண்ணலாம். Device மாறினாலும், browser clear ஆனாலும் import பண்ணி restore ஆகும்.</div>
+    <div id="lastBackupInfo" style="font-size:11px;color:var(--amber-600);margin-bottom:10px;padding:6px 10px;background:var(--amber-50);border-radius:6px;display:none"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn btn-primary btn-sm" onclick="backupData()" style="flex:1">📥 Export JSON</button>
+      <button class="btn btn-sm" onclick="importBackup()" style="flex:1">📤 Import JSON</button>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:12px">
+      <button class="btn btn-sm btn-danger btn-full" onclick="resetData()">🔄 எல்லாவற்றையும் Reset பண்ணு</button>
     </div>
   </div>
   `;
+  // Show last backup info after render
+  setTimeout(() => {
+    const info = getLastBackupInfo();
+    const el = document.getElementById('lastBackupInfo');
+    if (el) {
+      if (!info) {
+        el.style.display = 'block';
+        el.textContent = '⚠️ இன்னும் backup எடுக்கவில்லை!';
+      } else if (info.days >= 3) {
+        el.style.display = 'block';
+        el.textContent = `⚠️ கடைசி backup: ${info.date} (${info.days} நாட்கள் ஆச்சு)`;
+      } else {
+        el.style.display = 'block';
+        el.style.background = 'var(--green-50)';
+        el.style.color = 'var(--green-800)';
+        el.textContent = `✅ கடைசி backup: ${info.date}`;
+      }
+    }
+  }, 50);
 }
 
 function openAddCCSheet() {
@@ -972,10 +1132,23 @@ function saveUser() {
 }
 
 function backupData() {
+  const timestamp = new Date().toISOString();
+  const exportData = { ...DB, _exportedAt: timestamp, _version: 'v4' };
   const a = document.createElement('a');
-  a.href = 'data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(DB,null,2));
-  a.download = `feeds_backup_${todayStr()}.json`; a.click();
+  a.href = 'data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(exportData,null,2));
+  a.download = `GKD_Feeds_Backup_${todayStr()}.json`;
+  a.click();
+  localStorage.setItem('feeds_last_backup', timestamp);
   showToast('✅ Backup downloaded!');
+  navigate('settings');
+}
+
+function getLastBackupInfo() {
+  const last = localStorage.getItem('feeds_last_backup');
+  if (!last) return null;
+  const d = new Date(last);
+  const days = Math.floor((Date.now() - d) / 86400000);
+  return { date: d.toLocaleDateString('ta-IN',{day:'numeric',month:'short',year:'numeric'}), days };
 }
 
 function importBackup() {
