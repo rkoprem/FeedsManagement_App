@@ -272,36 +272,39 @@ function loadData() {
 }
 
 function saveData() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
-  localStorage.setItem('feeds_app_backup_'+new Date().toISOString().slice(0,10), JSON.stringify(DB));
-  syncStockToSheets();
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+    localStorage.setItem('feeds_app_backup_'+new Date().toISOString().slice(0,10), JSON.stringify(DB));
+  } catch(e) {
+    console.error('LocalStorage error:', e);
+  }
+  syncStockToSheets(); // background, won't block save
+}
+
+async function sheetsPost(payload) {
+  try {
+    // Google Apps Script needs form-encoded or URL param approach for CORS
+    const params = new URLSearchParams();
+    params.append('data', JSON.stringify(payload));
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+  } catch(e) { /* silent */ }
 }
 
 async function syncStockToSheets() {
-  try {
-    await fetch(SHEETS_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'syncStock', ccs: DB.ccs })
-    });
-  } catch(e) { /* silent fail */ }
+  await sheetsPost({ action: 'syncStock', ccs: DB.ccs });
 }
 
 async function syncDeliveryToSheets(delivery) {
-  try {
-    await fetch(SHEETS_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'syncDelivery', delivery })
-    });
-  } catch(e) { /* silent fail */ }
+  await sheetsPost({ action: 'syncDelivery', delivery });
 }
 
 async function syncStockLogToSheets(log) {
-  try {
-    await fetch(SHEETS_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'syncStockLog', log })
-    });
-  } catch(e) { /* silent fail */ }
+  await sheetsPost({ action: 'syncStockLog', log });
 }
 
 function getDefaultData() {
@@ -324,15 +327,10 @@ let SESSION = { role:null, cc:null, user:null, loginRole:'manager' };
 let ACTIVE_TAB = 'home';
 
 async function manualSyncSheets() {
-  showToast('🔄 Syncing...');
+  showToast('🔄 Syncing to Google Sheets...');
   try {
-    const res = await fetch(SHEETS_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'syncStock', ccs: DB.ccs })
-    });
-    const json = await res.json();
-    if (json.status === 'ok') showToast('✅ Google Sheets Sync வெற்றி!');
-    else showToast('❌ Sync பிழை');
+    await sheetsPost({ action: 'syncStock', ccs: DB.ccs });
+    setTimeout(() => showToast('✅ Sync அனுப்பப்பட்டது! Sheets சரிபார்க்கவும்'), 1500);
   } catch(e) {
     showToast('❌ Network பிழை — இணையம் சரிபார்க்கவும்');
   }
